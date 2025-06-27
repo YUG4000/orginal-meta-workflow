@@ -1,67 +1,38 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const crypto = require('crypto');
-require('dotenv').config();
+import express from 'express';
+import bodyParser from 'body-parser';
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
-app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.json());
 
 app.post('/', (req, res) => {
-  const responseBody = {
-    status: 'INIT received',
-  };
+  const aesKey = req.headers['x-aes-key'];
+  const aesIV = req.headers['x-aes-iv'];
 
-  const base64Response = Buffer.from(JSON.stringify(responseBody)).toString('base64');
-
-  res.status(200).send(base64Response);
-});
-
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
-});
-
-app.post('/webhook', async (req, res) => {
-  try {
-    const { encryptedData, encryptedKey, iv } = req.body;
-
-    const privateKey = process.env.META_PRIVATE_KEY.replace(/\\n/g, '\n');
-    const bufferEncryptedKey = Buffer.from(encryptedKey, 'base64');
-
-    const decryptedAESKey = crypto.privateDecrypt(
-      {
-        key: privateKey,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha256'
-      },
-      bufferEncryptedKey
-    );
-
-    const decipher = crypto.createDecipheriv('aes-256-gcm', decryptedAESKey, Buffer.from(iv, 'base64'));
-    decipher.setAuthTag(Buffer.from(req.body.authTag, 'base64'));
-
-    let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
-    decrypted += decipher.final('utf8');
-
-    const jsonData = JSON.parse(decrypted);
-
-    console.log('Decrypted Payload:', jsonData);
-
-    // Send to your Make.com webhook
-    await fetch(process.env.MAKE_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(jsonData)
-    });
-
-    res.status(200).send('ACK');
-  } catch (error) {
-    console.error('Decryption error:', error);
-    res.status(500).send('Error');
+  if (!aesKey || !aesIV) {
+    return res.status(400).send('Missing encryption headers');
   }
-});
 
-app.get('/webhook', (req, res) => {
-  res.status(200).send('Webhook is alive!');
+  const responseData = JSON.stringify({
+    status: 'INIT received'
+  });
+
+  try {
+    const keyBuffer = Buffer.from(aesKey, 'base64');
+    const ivBuffer = Buffer.from(aesIV, 'base64');
+
+    const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, ivBuffer);
+    let encrypted = cipher.update(responseData, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
+
+    res.status(200).send(encrypted);
+  } catch (error) {
+    console.error('Encryption failed:', error);
+    res.status(500).send('Encryption error');
+  }
 });
 
 const PORT = process.env.PORT || 3000;
