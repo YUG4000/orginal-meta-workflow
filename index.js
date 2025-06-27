@@ -5,6 +5,12 @@ require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json({ limit: '1mb' }));
+
+app.post('/', (req, res) => {
+  console.log('INIT request received from Meta:', req.body);
+  res.status(200).send({ status: 'INIT received' });
+});
+
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
 });
