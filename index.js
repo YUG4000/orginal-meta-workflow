@@ -5,6 +5,9 @@ require('dotenv').config();
 
 const app = express();
 app.use(bodyParser.json({ limit: '1mb' }));
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 app.post('/webhook', async (req, res) => {
   try {
