@@ -7,8 +7,13 @@ const app = express();
 app.use(bodyParser.json({ limit: '1mb' }));
 
 app.post('/', (req, res) => {
-  console.log('INIT request received from Meta:', req.body);
-  res.status(200).send({ status: 'INIT received' });
+  const responseBody = {
+    status: 'INIT received',
+  };
+
+  const base64Response = Buffer.from(JSON.stringify(responseBody)).toString('base64');
+
+  res.status(200).send(base64Response);
 });
 
 app.get('/health', (req, res) => {
