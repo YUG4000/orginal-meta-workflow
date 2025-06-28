@@ -1,4 +1,3 @@
-// index.js
 import express from 'express';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -11,15 +10,15 @@ app.use(express.json({ type: '*/*' }));
 app.post('/', (req, res) => {
   const encryptionKeyB64 = req.header('X-Encrypt-Key');
   const encryptionIVB64 = req.header('X-Encrypt-IV');
-  const hasHeaders = encryptionKeyB64 && encryptionIVB64;
-  const hasBody = req.body && Object.keys(req.body).length > 0;
 
-  // ✅ This handles Meta's INIT health check — no headers, no body
-  if (!hasHeaders && !hasBody) {
-    return res.status(200).json({ status: 'INIT health check passed' });
+  const { action } = req.body || {};
+
+  // ✅ Handle Meta's INIT action without encryption
+  if (action === 'INIT') {
+    return res.status(200).json({ status: 'INIT success without encryption' });
   }
 
-  // ❌ Fail if headers are missing for real flow calls
+  // ❌ All other actions MUST have encryption headers
   if (!encryptionKeyB64 || !encryptionIVB64) {
     return res.status(400).json({ error: 'Missing encryption headers' });
   }
@@ -28,7 +27,7 @@ app.post('/', (req, res) => {
     const key = Buffer.from(encryptionKeyB64, 'base64');
     const iv = Buffer.from(encryptionIVB64, 'base64');
 
-    const responseData = JSON.stringify({ status: 'INIT received' });
+    const responseData = JSON.stringify({ status: 'Action processed' });
 
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(responseData, 'utf8', 'base64');
