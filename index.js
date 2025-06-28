@@ -1,4 +1,3 @@
-// index.js
 import express from 'express';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -12,6 +11,14 @@ app.post('/', (req, res) => {
   const encryptionKeyB64 = req.header('X-Encrypt-Key');
   const encryptionIVB64 = req.header('X-Encrypt-IV');
 
+  const action = req.body?.action;
+
+  // 👉 Allow plain response for INIT (used during Meta health check)
+  if (action === 'INIT' && (!encryptionKeyB64 || !encryptionIVB64)) {
+    return res.status(200).json({ status: 'INIT received (unencrypted)' });
+  }
+
+  // 👉 Otherwise require encryption
   if (!encryptionKeyB64 || !encryptionIVB64) {
     return res.status(400).json({ error: 'Missing encryption headers' });
   }
