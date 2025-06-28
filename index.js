@@ -1,3 +1,4 @@
+// index.js
 import express from 'express';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
@@ -15,17 +16,22 @@ app.post('/', (req, res) => {
     return res.status(400).json({ error: 'Missing encryption headers' });
   }
 
-  const key = Buffer.from(encryptionKeyB64, 'base64');
-  const iv = Buffer.from(encryptionIVB64, 'base64');
+  try {
+    const key = Buffer.from(encryptionKeyB64, 'base64');
+    const iv = Buffer.from(encryptionIVB64, 'base64');
 
-  const responseData = JSON.stringify({ status: 'INIT received' });
+    const responseData = JSON.stringify({ status: 'INIT received' });
 
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  let encrypted = cipher.update(responseData, 'utf8', 'base64');
-  encrypted += cipher.final('base64');
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(responseData, 'utf8', 'base64');
+    encrypted += cipher.final('base64');
 
-  res.setHeader('Content-Type', 'text/plain');
-  res.status(200).send(encrypted);
+    res.setHeader('Content-Type', 'text/plain');
+    res.status(200).send(encrypted);
+  } catch (err) {
+    console.error('Encryption error:', err);
+    res.status(500).json({ error: 'Encryption failed' });
+  }
 });
 
 const PORT = process.env.PORT || 3000;
