@@ -12,13 +12,12 @@ const privateKey = process.env.PRIVATE_KEY.replace(/\\n/g, '\n');
 app.post('/', (req, res) => {
   const { encrypted_flow_data, encrypted_aes_key, initial_vector } = req.body;
 
-  // Missing required fields
   if (!encrypted_flow_data || !encrypted_aes_key || !initial_vector) {
     return res.status(400).json({ error: 'Missing encryption fields' });
   }
 
   try {
-    // 1. Decrypt AES key using our RSA private key
+    // Decrypt the AES key using RSA private key
     const aesKey = crypto.privateDecrypt(
       {
         key: privateKey,
@@ -28,7 +27,7 @@ app.post('/', (req, res) => {
       Buffer.from(encrypted_aes_key, 'base64')
     );
 
-    // 2. Decrypt flow data using AES key and IV
+    // Decrypt the actual flow data
     const iv = Buffer.from(initial_vector, 'base64');
     const decipher = crypto.createDecipheriv('aes-256-cbc', aesKey, iv);
 
@@ -36,24 +35,25 @@ app.post('/', (req, res) => {
     decrypted += decipher.final('utf8');
 
     const parsedData = JSON.parse(decrypted);
-    console.log('Decrypted Request:', parsedData);
+    console.log('Decrypted Flow:', parsedData);
 
-    // 3. Build a response payload
-    const responseJson = JSON.stringify({ status: 'INIT successful' });
+    // Build response message
+    const responseMessage = JSON.stringify({ status: 'INIT successful' });
 
+    // Encrypt the response using AES key and IV
     const cipher = crypto.createCipheriv('aes-256-cbc', aesKey, iv);
-    let encrypted = cipher.update(responseJson, 'utf8', 'base64');
+    let encrypted = cipher.update(responseMessage, 'utf8', 'base64');
     encrypted += cipher.final('base64');
 
     res.setHeader('Content-Type', 'text/plain');
     res.status(200).send(encrypted);
-  } catch (err) {
-    console.error('Error processing Meta Flow:', err);
-    res.status(500).json({ error: 'Decryption/Encryption failed' });
+  } catch (error) {
+    console.error('Error handling request:', error.message);
+    res.status(500).json({ error: 'Failed to process encrypted request' });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Meta Flow server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
